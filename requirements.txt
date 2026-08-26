@@ -1,0 +1,6 @@
+# You must have ffmpeg installed for /video clips
+opencv-python
+pillow
+torch
+transformers
+requests

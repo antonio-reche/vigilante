@@ -1,0 +1,14 @@
+{
+    "BOT_TOKEN": "<BOT-TOKEN>",
+    "CHAT_IDS": ["<CHAT_ID_01>", "<CHAT_ID_02>"],
+    "IMAGES_FOLDER": "images",
+    "WATCH_TIME_STEP": 3,
+    "DETECTION_THRESHOLD": 0.65,
+    "YOLO_MODEL": "hustvl/yolos-tiny",
+    "LANGUAGE": "en",
+    "COOLDOWN": 30,
+    "PRESENCE_TIMEOUT": 8,
+    "VIDEO_SECONDS": 5,
+    "VIDEO_MAX_SECONDS": 20,
+    "VIDEO_FPS": 8
+}

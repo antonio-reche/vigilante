@@ -41,6 +41,8 @@ VIDEO_MAX_SECONDS = PARAMS.get("VIDEO_MAX_SECONDS", 20)            # Cap for /vi
 VIDEO_FPS = PARAMS.get("VIDEO_FPS", 8)                             # Frames per second of /video clips
 # ================================================
 
+os.makedirs(IMAGES_FOLDER, exist_ok=True)
+
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}" # Telegram API URL to interact with the bot
 
 
@@ -142,7 +144,7 @@ def _post_alert(chat_id, message, photo_bytes):
                              data={"chat_id": chat_id}, timeout=30)
         if resp.status_code == 429:
             retry = resp.json().get("parameters", {}).get("retry_after", 5)
-            print(f"[telegram] rate limit, espero {retry}s")
+            print(f"[telegram] rate limit, waiting {retry}s")
             time.sleep(retry)
     except Exception as e:
         print("[telegram] error enviando:", e)
@@ -208,7 +210,7 @@ def record_short_clip(seconds):
 
     writer = cv2.VideoWriter(raw_path, cv2.VideoWriter_fourcc(*"MJPG"), VIDEO_FPS, (w, h))
     if not writer.isOpened():
-        raise RuntimeError("No se pudo abrir el VideoWriter")
+        raise RuntimeError("Could not open VideoWriter")
 
     interval = 1.0 / VIDEO_FPS
     t0 = time.time()
@@ -252,7 +254,7 @@ def handle_video(chat_id, seconds):
             if os.path.exists(path):
                 os.remove(path)
     except Exception as e:
-        print("[telegram] error enviando vídeo:", e)
+        print("[telegram] error sending video:", e)
 
 
 # ============ COMMAND LISTENER (/photo, /video) ============
@@ -283,18 +285,19 @@ def listen_commands():
                 # Only reply to trusted chats.
                 if chat not in allowed:
                     continue
-                if text.startswith("/photo"):
+                cmd = text.split()[0].split("@")[0] if text else ""
+                if cmd == "/photo":
                     frame = webcam.read()
                     ok, buf = cv2.imencode(".jpg", frame)
                     if ok:
                         requests.post(f"{TELEGRAM_API}/sendPhoto",
                                       files={"photo": ("actual.jpg", buf.tobytes(), "image/jpeg")},
                                       data={"chat_id": chat}, timeout=30)
-                elif text.startswith("/video"):
+                elif cmd == "/video":
                     seconds = parse_video_seconds(text)
                     Thread(target=handle_video, args=(chat, seconds), daemon=True).start()
         except Exception as e:
-            print("[telegram] error escuchando comandos:", e)
+            print("[telegram] error listening for commands:", e)
             time.sleep(3)
 
 
@@ -362,7 +365,7 @@ while True:
 
                 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
                 cv2.imwrite(os.path.join(IMAGES_FOLDER, "image_" + current_time + ".png"), annotated)
-                print("Persona detectada! 🚨")
+                print("¡Persona detectada! 🚨" if LANGUAGE == "es" else "Person detected! 🚨")
             person_present = True
         else:
             # If nobody has been seen for a while, reset so the next
