@@ -1,12 +1,12 @@
 # Vigilante
 
-Vigilante is a small home-monitoring system for keeping an eye on your place while you are away. It is a single Python script that uses a webcam to detect people and sends you an alert through Telegram bot. You can also ask the bot for a live photo or a short video with `/photo` or `/video`.
+Vigilante is a small AI-assisted home-monitoring system for keeping an eye on your place while you are away. It is a single Python script that uses a webcam to detect people and sends you an alert through a Telegram bot. You can also ask the bot for a live photo or a short video with `/photo` or `/video`.
 
-It uses a small object detection model (tiny YOLO) that runs on almost any CPU, making it suitable for old hardware without a GPU. It should also work on any computer with a webcam. Detection stays on the device, while Telegram handles alerts and commands.
+It uses a small object detection model (tiny YOLO) that runs on almost any CPU, making it suitable for old hardware or small devices without a GPU. It should also work on any computer with a webcam. Detection stays on the device, while Telegram handles alerts and commands.
 
 ## What you need
 
-- A computer with a webcam and internet
+- A computer with a webcam and internet (the webcam can be any: integrated or external with USB)
 - Python 3.10 or newer
 - A Telegram account
 - *OPTIONAL:* [ffmpeg](https://ffmpeg.org/) on your PATH (only if you want to use the `/video` command)
@@ -23,15 +23,19 @@ On macOS with Homebrew: `brew install ffmpeg`. On Windows, install ffmpeg and ch
 
 1. OpenCV keeps reading the latest frame from the webcam in the background.
 
-2. Every few seconds, a small object-detection model ([YOLOS-tiny](https://huggingface.co/hustvl/yolos-tiny)) checks that frame for a person. Here we only care about the `person` label. If you want to detect something else (a `dog`, a `cat`, etc.), you can extend it to any label the model already knows.
+2. Every few seconds, a small object-detection model ([YOLOS-tiny](https://huggingface.co/hustvl/yolos-tiny); [Fang et al., 2021](#references)) checks that frame for a person. Here we only care about the `person` label. If you want to detect something else (a `dog`, a `cat`, etc.), you can extend it to any label the model already knows. Check the [cited paper](#references) and/or [HuggingFace repo](https://huggingface.co/hustvl/yolos-tiny) to know which labels it accepts.
 
 3. If a person walks into camera view, the model detects that and the bot sends you a photo on Telegram (with a cooldown so one visit is usually one alert).
 
-4. A second thread listens for commands you send to the bot. Only people whose chat ID you put in the config can talk to it.
+4. A second thread listens for commands you send to the bot. Only people whose chat ID you put in the config `params.json` file as `CHAT_IDS` can talk to it.
 
-Checks are spaced out so an old CPU can keep up. With the default `WATCH_TIME_STEP = 3 seconds` plus the time the model takes to run, you get a look roughly every 4 to 6 seconds depending on your device. This is a presence alarm. It does not record all day.
+Checks are spaced out so an old CPU can keep up. With the default `WATCH_TIME_STEP = 3 seconds` plus the time the model takes to run, you get a look roughly every 4 to 6 seconds depending on your device. 
+
+As you can see, this is a presence alarm. It does not record all day.
 
 ### Telegram rate limits (read this before you tweak timings)
+
+You are free to adjust the parameters at `params.json` as best suits you, but before doing so, please, read below.
 
 Telegram will refuse you if you talk to their API too often. The reply is HTTP 429, then you wait `retry_after` seconds. It will get worse if you keep trying, and the bot can stop working. Two easy ways to hit that limit with this code:
 
@@ -43,7 +47,7 @@ If you want to change timings, do not set `COOLDOWN` or `WATCH_TIME_STEP` near z
 
 What the script already does to stay under the cap:
 
-- Alert only on a **new** appearance, and only if `COOLDOWN` seconds have passed since the last send (default 30).
+- Alert only on a **new** appearance, and only if `COOLDOWN` seconds have passed since the last send (default 30). So, if a person stays in view indefinitely, the model only alerts the first time the person is detected.
 
 - After `PRESENCE_TIMEOUT` seconds with no person (default 8), the next appearance can alert again. One detection should be only one photo and not a burst.
 
@@ -53,7 +57,9 @@ What the script already does to stay under the cap:
 
 - Command listening uses **long polling**: `getUpdates` with `timeout=30`, so Telegram holds the request until a message arrives or 30 seconds pass. That is a handful of checks per minute, not hundreds. `offset` skips messages already seen. On error it sleeps 3 seconds instead of retrying immediately.
 
-The first run downloads the model from Hugging Face, so it will take more time. Later runs can reuse the cached model. The default it's a small model (that works surprisingly well), but if you decide to use a better or larger one, make sure you have enough space and CPU/GPU to run it!
+The first run downloads the model from Hugging Face, so it will take more time. Later runs will reuse the cached model, so it'll start significantly faster. 
+
+The default in this repo it's a small model (that works surprisingly well), but if you decide to use a better or larger one, make sure you have enough space and CPU/GPU to run it!
 
 ## Setup
 
@@ -67,7 +73,7 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-2. Create a Telegram bot with [@BotFather](https://telegram.me/BotFather) (see the [docs](https://core.telegram.org/bots/tutorial)). It will give you a **bot token** (a long string, not a numeric “bot ID”). Treat that token like a password: anyone who has it can send messages as your bot!
+2. Create a Telegram bot with [@BotFather](https://telegram.me/BotFather) (see the [docs](https://core.telegram.org/bots/tutorial)). It will give you a **bot token**. That is the value you put in `BOT_TOKEN` in `params.json`. Treat it like a password: anyone who has it can send messages as your bot!
 
 3. Get your **chat ID**. Open a chat with your new bot, send any message, then talk to [@userinfobot](https://telegram.me/userinfobot) or inspect `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` and copy the `chat.id` number. If you want someone else to get the alerts too and be able to talk to the bot, they need to message the bot once, and then you add their chat ID as well.
 
@@ -86,7 +92,7 @@ python detection.py
 ```
 That's it!
 
-You should get a “camera is live” photo in Telegram. After that, walk into view once if you want to test an alert.
+You should get a “camera is live” photo in Telegram. After that, walk into view once if you want to test an alert and/or ask for `/photo`  and `/video` (only if you have ffmpeg installed in the computer) commands.
 
 
 Default camera index is `0` (the first webcam). If you have several cameras and you want a different one, change `camera_index` in `WebcamStream` inside `detection.py`.
@@ -125,3 +131,9 @@ If you want a snapshot or a clip of the current view, send these in the chat wit
 - Alert photos and clips go through Telegram’s servers. That traffic is not end-to-end encrypted. Detection stays on your computer; the files you choose to send do not.
 - Only people in `CHAT_IDS` can send `/photo` and `/video`. Keep `params.json` off git. If a token ever leaked, revoke it in BotFather with `/revoke` and put the new token in `params.json`.
 - This is a personal project I built so I could check inside my home when I'm not around, so, if you want to use this repo, point the camera only at your own space. Recording laws differ by country and by whether the lens can see a neighbor, a sidewalk, or a shared hallway.
+
+## References
+
+The person detection AI model uses [YOLOS-tiny](https://huggingface.co/hustvl/yolos-tiny) from Fang et al. (2021):
+
+Fang, Y., Liao, B., Wang, X., Fang, J., Qi, J., Wu, R., Niu, J., & Liu, W. (2021). You Only Look at One Sequence: Rethinking Transformer in Vision through Object Detection. *CoRR, abs/2106.00666*. https://arxiv.org/abs/2106.00666
