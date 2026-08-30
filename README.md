@@ -1,5 +1,9 @@
 # Vigilante
 
+<p align="center">
+  <img src="demo.gif" alt="Demo" width="500">
+</p>
+
 Vigilante is a small AI-assisted home-monitoring system for keeping an eye on your place while you are away. It is a single Python script that uses a webcam to detect people and sends you an alert through a Telegram bot. You can also ask the bot for a live photo or a short video with `/photo` or `/video`.
 
 It uses a small object detection model (tiny YOLO) that runs on almost any CPU, making it suitable for old hardware or small devices without a GPU. It should also work on any computer with a webcam. Detection stays on the device, while Telegram handles alerts and commands.
